@@ -108,12 +108,11 @@ function _expandList() {
         # Here arg is an interval or a single value only
         if [[ "$arg" =~ - ]]; then
 
-            first="${arg%-*}"
-            first="${first#0}"
+            first="$( echo "${arg%-*}" | bc )"      # bc is needed to remove leading zeroes but preserving
+                                                    # at least one zero if the number is '00'.
             isNatural "$first" || throwException "Argument before \"-\" is not an integer in: $arg"
 
-            last="${arg#*-}"
-            last="${last#0}"
+            last="$( echo "${arg#*-}" | bc )"        # See note above for $first
             isNatural "$last" || throwException "Argument after \"-\" is not an integer in: $arg"
 
             # I must take into account the fact that sun can be either 0 or 7
