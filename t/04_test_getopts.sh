@@ -7,7 +7,7 @@ set -e
     . ../getopts.sh
 set +e
 
-tests 21
+tests 22
 
 tlog "printing help in case of -h"
 HELP="$(getOptions '-h')"
@@ -85,6 +85,11 @@ pass
 tlog "option already added 4/4"
 AD="$(addOption 'c:' 'Option'; addOption 'c:' 'Option2'; getOptions '-c')"
 [[ "$AD" =~ 'already been added' ]] || fail "Failed to recognize duplicated option"
+pass
+
+tlog "detection of duplicated opts on command line"
+DO="$(addOption 'c:' 'Option'; getOptions '-c' 1 '-c' 2 2>&1)"
+[[ "$DO" =~ 'duplicated on command line' ]] || fail "Duplicated options on cmdline not detected"
 pass
 
 tlog "multi-valued option add"

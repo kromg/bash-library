@@ -34,6 +34,9 @@
 #           - Added special syntax (@) for flags that can be specified more than
 #             once.
 #
+#       2017-10-03T17:20:17+02:00
+#           - Added detection of duplicated option on command line.
+#
 
 # ------------------------------------------------------------------------------
 #  Helper variables
@@ -225,6 +228,10 @@ function getOptions() {
                         _definedCommandLineFlags[$OPT]=1
                         ;;
                     1)
+                        if hasOption "$OPT"; then
+                            printHelp "Option -$OPT duplicated on command line. It's not a multi-valued option." >&2
+                            exit 1
+                        fi
                         _definedCommandLineOptions[$OPT]="$OPTARG"
                         ;;
                     2)
