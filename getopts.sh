@@ -91,6 +91,11 @@ function _isMandatory() {
     [ "${_commandLineOptionsMandatory[$1]}" ]
 }
 
+# Check if this option is multi-valued
+function _isMultivalued() {
+    [ "$_commandLineMultivalueOptions[$1]}" ]
+}
+
 
 
 # ------------------------------------------------------------------------------
@@ -103,12 +108,16 @@ function _isMandatory() {
 # Usage:
 #   addOption <optionSpec> <helpString> [<argName>]
 #
-#     optionSpec: like for getopts, a character identifies a flag, a character
-#                 followed by a colon specifies an option with a mandatory
-#                 argument; SINCE VERSION '2017-10-03T14:01:24+02:00' options
-#                 followed by a '@' character are allowed to be specified
-#                 multiple times on the command line, and all their arguments
-#                 are stored into an array.
+#     optionSpec:
+#           a character (e.g.: "f")          -->   a flag (as in bash's getopts)
+#           a char and a colon (e.g.: "o:")  -->   an option, with an argument 
+#                                                  (as in bash getopts)
+#           a char and an "@" (e.g.: "m@")   -->   an option that can be
+#                                                  specified on command line
+#                                                  multiple times.
+#        Values of multi-valued options are stored into an array named after the
+#        option itself. For future compatibility, use valueOf "<OPT>" to get the
+#        name of such array.
 #                 
 #        EXTENSION: prepend the option specification with a bang (!) if
 #                 you want the option to be considered mandatory (has no meaning
@@ -155,13 +164,33 @@ function addOption() {
     [ "$2" ] && _commandLineOptionsHelp["$optspec"]="$2"
     [ "$3" ] && _commandLineOptionsArgs["$optspec"]="$3"
     [[ "$1" =~ ! ]] && _commandLineOptionsMandatory["$optspec"]=1
+
+    return 0
 }
 
 # getOptions()
 #   Parse the command line according to specifications entered by (possibly
-#   repeated) usage of addOption().  EXPORTS an array named ARGV containing
-#   all the parameters left on the command line after parsing of options is
-#   finished.
+#   repeated) usage of addOption().  
+#
+#   - EXPORTS an array named ARGV containing all the parameters left on the 
+#     command line after parsing of options is finished;
+#
+#   - EXPORTS one or more array named _${OPTION}_VALUES for all those options
+#     that can be specified more than once. These arrays contain the values
+#     of the arguments specified on the command line. For example, if there
+#     is a "-m" flag that can be spcified, and the command line is: 
+#
+#       ... -m 1 -m 3 ...
+#
+#     then the array _m_VALUES will contain the values 1 and 3. The array name
+#     is returned by the valueOf() function, in place of the values, and the
+#     values may be get as follows:
+#
+#       arr = $(valueOf "m")     # Same flag as above, returns "_m_VALUES"
+#       arr = "${arr}[@]"        # Append [@] to the variable to retrieve values
+#       for v in "${!arr}"; do   # "${!arr}" same as "${_m_VALUES[@]}"
+#           ...
+#
 #
 #   - Automatically prints help if -h was specified on the command line.
 #
@@ -201,10 +230,11 @@ function getOptions() {
                         _definedCommandLineOptions[$OPT]="$OPTARG"
                         ;;
                     2)
-                        local _array="_${OPT}_VALUES"
+                        local array="_${OPT}_VALUES"
                         _definedCommandLineOptions[$OPT]="$array"
-                        declare -a "$array"
-                        eval "$_array=('$OPTARG')"
+                        eval "export $array"
+                        # declare -a "$array"  # NO! This makes this variable local.
+                        eval "$array+=('$OPTARG')"
                         ;;
                     *)
                         echo "Probable script bug - invalid number of arguments for -$OPT: $numargs"
@@ -241,6 +271,7 @@ function getOptions() {
 
 # hasOption()
 #   Return true if specified option was given on command line.
+#   JUST OPTIONS, not flags. For flags see isSet().
 #
 # Usage: 
 #   hasOption "<an option>"
@@ -254,6 +285,7 @@ function hasOption() {
 
 # isSet()
 #   Return true if specified flag was given on command line.
+#   JUST FLAGS, not options. For options see hasOption().
 #
 # Usage:
 #   isSet "<a flag>"
@@ -266,7 +298,9 @@ function isSet() {
 }
 
 # valueOf()
-#   Retrieve the value of the arg associated to the named option.
+#   Retrieve the value of the arg associated to the named option, or the name
+#   of the array containing values for multi-valued options (see addOption
+#   help).
 #
 # Usage:
 #   myVal="$(valueOf "<an option>")"
@@ -278,11 +312,6 @@ function valueOf() {
     echo "${_definedCommandLineOptions[$1]}"
 }
 
-# getArgs()
-#   Retrieve the array of command line arguments (if any)
-#
-# Usage:
-#   
 
 # printHelp()
 #   Prints the whole help string.
@@ -298,6 +327,7 @@ function printHelp() {
             arg=${arg:-ARG}
             _isMandatory "$opt" && optlist+=("-${opt%:} $arg") || optlist+=("[-${opt%:} $arg]")
             opts+=$"      -${opt%:} $arg\n        ${_commandLineOptionsHelp[$opt]}\n"
+            _isMultivalued "$opt" && opts+=$"        This option can be specified multiple times.\n"
         else
             _isMandatory "$opt" && optlist+=("-$opt") || optlist+=("[-$opt]")
             flags+=$"      -$opt\t${_commandLineOptionsHelp[$opt]}\n"
