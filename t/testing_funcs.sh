@@ -14,6 +14,10 @@ function fail() {
     exit 1
 }
 
+function header() {
+    echo -e "\n\n ============== TESTING $1 ==============\n" >&3
+}
+
 function caption() {
     echo ".... $*" >&3
 }

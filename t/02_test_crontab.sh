@@ -10,8 +10,9 @@ function check_against() {
 }
 
 set -e
-. ./testing_funcs.sh
-. ../crontab.sh
+    . ./testing_funcs.sh
+    header crontab.sh
+    . ../crontab.sh
 set +e
 
 # Enlarge the space available for testing message output

@@ -6,8 +6,9 @@ exec 3<&1
 exec 4<&2
 
 set -e
-. ./testing_funcs.sh
-. ../bashHelpers.sh
+    . ./testing_funcs.sh
+    header bashHelpers.sh
+    . ../bashHelpers.sh
 set +e
 
 tests 17

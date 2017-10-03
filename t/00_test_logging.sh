@@ -2,8 +2,9 @@
 # vim: se et ts=4
 
 set -e
-. ./testing_funcs.sh
-. ../logging.sh
+    . ./testing_funcs.sh
+    header logging.sh
+    . ../logging.sh
 set +e
 
 function check_normal_loglevels() {

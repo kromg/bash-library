@@ -2,8 +2,9 @@
 # vim: se et ts=4
 
 set -e
-. ./testing_funcs.sh
-. ../getopts.sh
+    . ./testing_funcs.sh
+    header getopts.sh
+    . ../getopts.sh
 set +e
 
 tests 14
