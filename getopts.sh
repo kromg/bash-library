@@ -29,6 +29,10 @@
 #
 #       2017-06-27T12:11:16+02:00
 #           - Added non-duplication checks; added check for -? option
+#       
+#       2017-10-03T14:01:24+02:00
+#           - Added special syntax (@) for flags that can be specified more than
+#             once.
 #
 
 # ------------------------------------------------------------------------------
@@ -36,17 +40,24 @@
 # ------------------------------------------------------------------------------
 
 # Associative arrays used to store command line properties
+declare -A _commandLineOptions
+declare -A _commandLineFlags
+declare -A _commandLineMultivalueOptions
 declare -A _commandLineOptionsHelp
 declare -A _commandLineOptionsArgs
 declare -A _commandLineOptionsMandatory
 
 # Add default options: -h (help), -v (verbose) and -V (version).
-_commandLineOptionsHelp[h]="Print this help message"
-_commandLineOptionsHelp[v]="Be verbose"
-_commandLineOptionsHelp[V]="Print version and exit"
+#  This should be done via addOption but I cannot do it here.
+_commandLineFlags["h"]=1
+_commandLineFlags["v"]=1
+_commandLineFlags["V"]=1
+_commandLineOptionsHelp["h"]="Print this help message"
+_commandLineOptionsHelp["v"]="Be verbose"
+_commandLineOptionsHelp["V"]="Print version and exit"
 
 # Flags found in the command line
-declare -A _definedCommandLineFlsgs
+declare -A _definedCommandLineFlags
 
 # Options found in the command line
 declare -A _definedCommandLineOptions
@@ -58,16 +69,21 @@ declare -A _definedCommandLineOptions
 
 # Check if an option/flag was already added
 function _optAlreadyExists() {
+    local o="${1%:}"
+          o="${o%@}"
     [ \
-        -n "${_commandLineOptionsHelp[${1%:}]}" -o \
-        -n "${_commandLineOptionsHelp[$1]}"     -o \
-        -n "${_commandLineOptionsHelp[$1:]}" \
+        -n "${_commandLineFlags[$o]}"   -o \
+        -n "${_commandLineOptions[$o:]}" -o \
+        -n "${_commandLineMultivalueOptions[$o@]}" \
     ]
 }
 
 # Check if this is a flag or an option
 function _hasArgs() {
-    [ "${_commandLineOptionsHelp[$1:]}" ]
+    [ \
+        -n "${_commandLineOptions[$1:]}" -o \
+        -n "${_commandLineMultivalueOptions[$1:]}" \
+    ]
 }
 
 # Check if this option is mandatory (flags cannot be mandatory)
@@ -89,8 +105,12 @@ function _isMandatory() {
 #
 #     optionSpec: like for getopts, a character identifies a flag, a character
 #                 followed by a colon specifies an option with a mandatory
-#                 argument.
-#        EXTENSION: prepent the option specification with a bang (!) if
+#                 argument; SINCE VERSION '2017-10-03T14:01:24+02:00' options
+#                 followed by a '@' character are allowed to be specified
+#                 multiple times on the command line, and all their arguments
+#                 are stored into an array.
+#                 
+#        EXTENSION: prepend the option specification with a bang (!) if
 #                 you want the option to be considered mandatory (has no meaning
 #                 for flags).
 #
@@ -100,9 +120,10 @@ function _isMandatory() {
 #              help string.
 #
 function addOption() {
+    # Get the option/flag without the optional '!' 
     local opt="${1#!}"
     # Forbid the usage of '?' as a flag or option character
-    if [ "${opt%:}" == '?' ]; then
+    if [ "${opt%:}" == '?' -o "${opt%@}" == '?' ]; then
         echo "Cannot use '?' as an option/flag: getopts reserved character"
         exit 1
     fi
@@ -113,8 +134,21 @@ function addOption() {
         exit 1
     fi
 
-    # Help string is important. An undefined help string may break _hasArgs() 
-    _commandLineOptionsHelp["$opt"]="${2:-<No help provided>}"
+    # Insert the option in the appropriate option set
+    case "$opt" in
+        *:)
+            _commandLineOptions["$opt"]=1
+            ;;
+        *@)
+            _commandLineMultivalueOptions["${opt/@/:}"]=1
+            ;;
+        *)
+            _commandLineFlags["$opt"]=1
+            ;;
+    esac
+
+    # Fill other information about this option
+    [ "$2" ] && _commandLineOptionsHelp["$opt"]="$2"
     [ "$3" ] && _commandLineOptionsArgs["$opt"]="$3"
     [[ "$1" =~ ! ]] && _commandLineOptionsMandatory["$opt"]=1
 }
@@ -134,10 +168,12 @@ function addOption() {
 #   getOptions "$@"     # Pass script's args to getOptions()
 #
 function getOptions() {
-    local optString=''
+    local optString=':'
     # Build the options string. Start with a colon so getopts uses silent
     # error reporting
-    IFS='' optString=":${!_commandLineOptionsHelp[*]}"
+    IFS='' optString+="${!_commandLineFlags[*]}"
+    IFS='' optString+="${!_commandLineOptions[*]}"
+    IFS='' optString+="${!_commandLineMultivalueOptions[*]}"
 
     while getopts "$optString" OPT; do
         case "$OPT" in
@@ -155,7 +191,7 @@ function getOptions() {
                 if _hasArgs "$OPT"; then
                     _definedCommandLineOptions[$OPT]="$OPTARG"
                 else
-                    _definedCommandLineFlsgs[$OPT]=1
+                    _definedCommandLineFlags[$OPT]=1
                 fi
                 ;;
         esac
@@ -208,7 +244,7 @@ function hasOption() {
 #   associated character. 
 #
 function isSet() {
-    [ "${_definedCommandLineFlsgs[$1]}" ]
+    [ "${_definedCommandLineFlags[$1]}" ]
 }
 
 # valueOf()
