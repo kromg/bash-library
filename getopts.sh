@@ -74,16 +74,16 @@ function _optAlreadyExists() {
     [ \
         -n "${_commandLineFlags[$o]}"   -o \
         -n "${_commandLineOptions[$o:]}" -o \
-        -n "${_commandLineMultivalueOptions[$o@]}" \
+        -n "${_commandLineMultivalueOptions[$o:]}" \
     ]
 }
 
 # Check if this is a flag or an option
-function _hasArgs() {
-    [ \
-        -n "${_commandLineOptions[$1:]}" -o \
-        -n "${_commandLineMultivalueOptions[$1:]}" \
-    ]
+function _numArgs() {
+    [ "${_commandLineFlags[$1]}" ] && return 0
+    [ "${_commandLineOptions[$1:]}" ] && return 1
+    [ "${_commandLineMultivalueOptions[$1:]}" ] && return 2
+    return 3
 }
 
 # Check if this option is mandatory (flags cannot be mandatory)
@@ -121,9 +121,11 @@ function _isMandatory() {
 #
 function addOption() {
     # Get the option/flag without the optional '!' 
-    local opt="${1#!}"
+    local optspec="${1#!}"
+    local opt="${optspec%:}"
+          opt="${opt%@}"
     # Forbid the usage of '?' as a flag or option character
-    if [ "${opt%:}" == '?' -o "${opt%@}" == '?' ]; then
+    if [ "${opt}" == '?' ]; then
         echo "Cannot use '?' as an option/flag: getopts reserved character"
         exit 1
     fi
@@ -135,22 +137,24 @@ function addOption() {
     fi
 
     # Insert the option in the appropriate option set
-    case "$opt" in
+    case "$optspec" in
         *:)
-            _commandLineOptions["$opt"]=1
+            _commandLineOptions["$optspec"]=1
             ;;
         *@)
-            _commandLineMultivalueOptions["${opt/@/:}"]=1
+            optspec="${optspec/@/:}"  # "@" won't be needed anymore, ":" will
+            _commandLineMultivalueOptions["$optspec"]=1
             ;;
         *)
-            _commandLineFlags["$opt"]=1
+            _commandLineFlags["$optspec"]=1
             ;;
     esac
 
+
     # Fill other information about this option
-    [ "$2" ] && _commandLineOptionsHelp["$opt"]="$2"
-    [ "$3" ] && _commandLineOptionsArgs["$opt"]="$3"
-    [[ "$1" =~ ! ]] && _commandLineOptionsMandatory["$opt"]=1
+    [ "$2" ] && _commandLineOptionsHelp["$optspec"]="$2"
+    [ "$3" ] && _commandLineOptionsArgs["$optspec"]="$3"
+    [[ "$1" =~ ! ]] && _commandLineOptionsMandatory["$optspec"]=1
 }
 
 # getOptions()
@@ -188,11 +192,25 @@ function getOptions() {
                 exit 1
                 ;;
             *)  
-                if _hasArgs "$OPT"; then
-                    _definedCommandLineOptions[$OPT]="$OPTARG"
-                else
-                    _definedCommandLineFlags[$OPT]=1
-                fi
+                _numArgs "$OPT"; numargs=$?
+                case $numargs in
+                    0)
+                        _definedCommandLineFlags[$OPT]=1
+                        ;;
+                    1)
+                        _definedCommandLineOptions[$OPT]="$OPTARG"
+                        ;;
+                    2)
+                        local _array="_${OPT}_VALUES"
+                        _definedCommandLineOptions[$OPT]="$array"
+                        declare -a "$array"
+                        eval "$_array=('$OPTARG')"
+                        ;;
+                    *)
+                        echo "Probable script bug - invalid number of arguments for -$OPT: $numargs"
+                        exit 2
+                        ;;
+                esac
                 ;;
         esac
     done
@@ -291,6 +309,5 @@ function printHelp() {
         [ "$flags" ] && echo -e "    FLAGS\n$flags\n"
         [ "$opts"  ] && echo -e "    OPTIONS\n$opts\n"
     ) | fold -w 80
-
 }
 
