@@ -211,13 +211,11 @@ function getOptions() {
     while getopts "$optString" OPT; do
         case "$OPT" in
             ':')
-                echo "Missing argument to option: $OPTARG"
-                printHelp
+                printHelp "Missing argument to option: $OPTARG" >&2
                 exit 1
                 ;;
             '?')
-                echo "Unknown option: $OPTARG"
-                printHelp
+                printHelp "Unknown option: $OPTARG" >&2
                 exit 1
                 ;;
             *)  
@@ -259,8 +257,7 @@ function getOptions() {
     # Check for mandatory options, die if a mandatory option was not found.
     for m in "${!_commandLineOptionsMandatory[@]}"; do
         if ! hasOption "${m%:}"; then
-            echo "Option ${m%:} is mandatory"
-            printHelp
+            printHelp "Option ${m%:} is mandatory" >&2
             exit 1
         fi
     done
@@ -335,6 +332,7 @@ function printHelp() {
     done
 
     (
+        [ "$1" ] && echo "$*"
         echo -e "\nUsage: $(basename $0) ${optlist[@]}\n"
         [ "$flags" ] && echo -e "    FLAGS\n$flags\n"
         [ "$opts"  ] && echo -e "    OPTIONS\n$opts\n"

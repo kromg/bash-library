@@ -41,18 +41,18 @@ VALUE="$(addOption 'c:'; getOptions "-c" "OK"; valueOf "c")"
 pass
 
 tlog "detection of absence of a mandatory flag"
-MISS_MANDATORY="$(addOption '!c:'; getOptions '-v' && echo "OK")"
+MISS_MANDATORY="$(addOption '!c:'; getOptions '-v' 2>&1 && echo "OK")"
 [[ "$MISS_MANDATORY" =~ "is mandatory" ]] || fail "Mandatory option not detected"
 pass
 
 tlog "detection of absence of required argument"
-MISS_ARG="$(addOption "c:"; getOptions "-c" && echo "OK")"
+MISS_ARG="$(addOption "c:"; getOptions "-c" 2>&1 && echo "OK")"
 [[ "$MISS_ARG" =~ "Missing argument " ]] || fail "Required argument absence not detected"
 [[ "$MISS_ARG" =~ "OK"                ]] && fail "Required argument absence not detected"
 pass
 
 tlog "detection of unconfigured option"
-UNCONF="$(getOptions "-k" && echo "OK")"
+UNCONF="$(getOptions "-k" 2>&1 && echo "OK")"
 [[ "$UNCONF" =~ "Unknown option: " ]] || fail "Unconfigured option not detected"
 [[ "$UNCONF" =~ OK                 ]] && fail "Unconfigured option not detected"
 pass
@@ -98,7 +98,7 @@ MVA2="$(addOption '!m@' && echo "OK")"
 pass
 
 tlog "mandatory multi-valued option detection"
-MMVD="$(addOption '!m@'; addOption 'c'; getOptions '-c' && echo "OK")"
+MMVD="$(addOption '!m@'; addOption 'c'; getOptions '-c' 2>&1 && echo "OK")"
 [[ "$MMVD" =~ "Option m is mandatory" ]] || fail "Mandatory multi-valued option not recognized as mandatory"
 pass
 
