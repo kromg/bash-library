@@ -7,7 +7,7 @@ set -e
     . ../getopts.sh
 set +e
 
-tests 29
+tests 33
 
 tlog "printing help in case of -h"
 HELP="$(getOptions '-h')"
@@ -85,27 +85,27 @@ pass
 
 tlog "forbidding ? as option"
 QM="$(addOption '?' 'QuestionMark!' 2>&1 ; getOptions '-?')"
-[[ "$QM" =~ 'getopts reserved character' ]] || fail "faild to recognize '?' as a reserved character"
+[[ "$QM" =~ 'getopts reserved character' ]] || fail "failed to recognize '?' as a reserved character"
 pass
 
 tlog "option already added 1/4"
 AD="$(addOption 'c' 'Flag'; addOption 'c' 'Flag2'; getOptions '-c')"
-[[ "$AD" =~ 'already been added' ]] || fail "faild to recognize duplicated flag"
+[[ "$AD" =~ 'already been added' ]] || fail "failed to recognize duplicated flag"
 pass
 
 tlog "option already added 2/4"
 AD="$(addOption 'c' 'Flag'; addOption 'c:' 'Option'; getOptions '-c')"
-[[ "$AD" =~ 'already been added' ]] || fail "faild to recognize duplicated flag/option"
+[[ "$AD" =~ 'already been added' ]] || fail "failed to recognize duplicated flag/option"
 pass
 
 tlog "option already added 3/4"
 AD="$(addOption 'c:' 'Option'; addOption 'c' 'Flag'; getOptions '-c')"
-[[ "$AD" =~ 'already been added' ]] || fail "faild to recognize duplicated option/flag"
+[[ "$AD" =~ 'already been added' ]] || fail "failed to recognize duplicated option/flag"
 pass
 
 tlog "option already added 4/4"
 AD="$(addOption 'c:' 'Option'; addOption 'c:' 'Option2'; getOptions '-c')"
-[[ "$AD" =~ 'already been added' ]] || fail "faild to recognize duplicated option"
+[[ "$AD" =~ 'already been added' ]] || fail "failed to recognize duplicated option"
 pass
 
 tlog "detection of duplicated opts on command line"
@@ -115,12 +115,12 @@ pass
 
 tlog "multi-valued option add"
 MVA="$(addOption 'm@' && echo "OK")"
-[ "$MVA" == OK ] || fail "faild to add multi-valued option"
+[ "$MVA" == OK ] || fail "failed to add multi-valued option"
 pass
 
 tlog "mandatory multi-valued option add"
 MVA2="$(addOption '!m@' && echo "OK")"
-[ "$MVA2" == OK ] || fail "faild to add mandatory multi-valued option"
+[ "$MVA2" == OK ] || fail "failed to add mandatory multi-valued option"
 pass
 
 tlog "mandatory multi-valued option detection"
@@ -140,7 +140,7 @@ pass
 
 tlog "multi-valued opt value (real)"
 MVR="$(addOption 'm@'; getOptions '-m' 1 '-m' '2 3 4' -m '5 6' -m 7 && arr="$(valueOf 'm')[@]"; for v in "${!arr}"; do echo -n "X${v}X"; done)"
-[ "$MVR" == "X1XX2 3 4XX5 6XX7X" ] || fail "faild to retrieve multi-values"
+[ "$MVR" == "X1XX2 3 4XX5 6XX7X" ] || fail "failed to retrieve multi-values"
 pass
 
 tlog "usage overriding"
@@ -162,6 +162,26 @@ OH="$(addOption -a 'c-arg' 'c:' 'c Help'; setHelp "Usage and blah blah blah"; ge
 [[ "$OH" =~ 'Usage and blah blah blah' ]] || fail "setHelp() not setting help"
 [[ "$OH" =~ $(basename $0) ]] && fail "setHelp() not overriding usage"
 [[ "$OH" =~ '-c c-arg' ]] && fail "setHelp() not overriding help"
+pass
+
+tlog "name arguments - more args than names"
+NA1="$(nameArguments ONE TWO THREE; getOptions a b c d e f; echo "$ONE $THREE")"
+[ "$NA1" == "a c" ] || fail "failed to name options (more options than names)"
+pass
+
+tlog "name arguments - more names than args"
+NA2="$(nameArguments ONE TWO THREE FOUR FIVE SIX; getOptions a b c; echo "$ONE $THREE $SIX")"
+[ "$NA2" == "a c " ] || fail "failed to name options (more names than options)"
+pass
+
+tlog "name arguments after - more args than names"
+NA3="$(getOptions a b c d e f; nameArguments ONE TWO THREE; echo "$ONE $THREE")"
+[ "$NA3" == "a c" ] || fail "failed to name options after parsing (more options than names)"
+pass
+
+tlog "name arguments after - more names than args"
+NA4="$(getOptions a b c; nameArguments ONE TWO THREE FOUR FIVE SIX; echo "$ONE $THREE $SIX")"
+[ "$NA4" == "a c " ] || fail "failed to name options after parsing (more names than options)"
 pass
 
 done_testing

@@ -52,6 +52,10 @@
 #           API CHANGE: addOption now accepts 2 arguments; the optional 
 #               argument name must be passed via "-a ARGNAME" now.
 #
+#       2017-10-04T16:51:48+02:00
+#           - Added nameArguments() to export command line arguments as named
+#             variables.
+#
 
 # ------------------------------------------------------------------------------
 #  Helper variables
@@ -123,6 +127,20 @@ function _hasDefault() {
 # Generate the name of the array for multi-valued options
 function _arrayName() {
     echo "_${1}_VALUES"
+}
+
+# Export variables corresponding to given argument names
+function _nameArguments() {
+    local idx=0
+    while [ \
+        "$idx" -lt "${#ARGV[@]}" -a \
+        "$idx" -lt "${#_commandLineArgumentNames[@]}" \
+    ]; do
+        local varName="${_commandLineArgumentNames[$idx]}"
+        local varValue="${ARGV[$idx]}"
+        eval "export $varName=$varValue"
+        ((idx++))
+    done
 }
 
 
@@ -214,6 +232,23 @@ function addOption() {
     [[ "$1" =~ ! ]] && _commandLineOptionsMandatory["$optspec"]=1
 
     return 0
+}
+
+# nameArguments()
+#   Introduce names for command line arguments. Names must be valid bash variable
+#   names. Causes getOptions to export variables with the given names from the 
+#   command line arguments. Args not found will be skipped.
+#   It can be called after getOptions. In that case the argument naming is done
+#   immediately (ARGV must be already populated).
+#
+# Usage:
+#   nameArguments <NAME1> [<NAME2> [...]]
+#
+function nameArguments() {
+    _commandLineArgumentNames=("$@")
+    if [ "${#ARGV[@]}" -gt 0 ]; then
+        _nameArguments
+    fi
 }
 
 # getOptions()
@@ -332,6 +367,8 @@ function getOptions() {
         fi
     done
 
+    # Export named variables from command line arguments if required
+    _nameArguments
 }
 
 
