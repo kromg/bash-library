@@ -31,6 +31,11 @@ HELP2="$(addOption "m@" 'Multivalued' 'oneValue'; getOptions -h)"
 [[ "$HELP2" =~ 'This option can be specified multiple times' ]] || fail "Multi-valued help not explicit on multi-values"
 pass
 
+tlog "help of an option with no help"
+HELP3="$(addOption 'k:'; getOptions -h)"
+[[ "$HELP3" =~ '-k <ARG>' ]] || fail "Options with no help are excluded from help screen"
+pass
+
 tlog "setting of a flag"
 VERBOSE="$(getOptions '-v'; isSet v && echo "OK")"
 [ $VERBOSE == OK ] || fail "-v does not set verbose"

@@ -43,6 +43,10 @@
 #       2017-10-04T13:55:07+02:00
 #           - Fixed an error in _isMultivalued()
 #
+#       2017-10-04T14:08:42+02:00
+#           - Fixed help on options with no help;
+#           - spaced options to make help more readable.
+#
 
 # ------------------------------------------------------------------------------
 #  Helper variables
@@ -158,10 +162,12 @@ function addOption() {
     case "$optspec" in
         *:)
             _commandLineOptions["$optspec"]=1
+            _commandLineOptionsArgs["$optspec"]="${3:-<ARG>}"
             ;;
         *@)
             optspec="${optspec/@/:}"  # "@" won't be needed anymore, ":" will
             _commandLineMultivalueOptions["$optspec"]=1
+            _commandLineOptionsArgs["$optspec"]="${3:-<ARG>}"
             ;;
         *)
             _commandLineFlags["$optspec"]=1
@@ -170,8 +176,7 @@ function addOption() {
 
 
     # Fill other information about this option
-    [ "$2" ] && _commandLineOptionsHelp["$optspec"]="$2"
-    [ "$3" ] && _commandLineOptionsArgs["$optspec"]="$3"
+    _commandLineOptionsHelp["$optspec"]="${2:-<no help>}"
     [[ "$1" =~ ! ]] && _commandLineOptionsMandatory["$optspec"]=1
 
     return 0
@@ -375,6 +380,7 @@ function printHelp() {
 
     for opt in "${!_commandLineOptionsHelp[@]}"; do
         if [[ $opt =~ : ]]; then
+            opts+=$"\n"
             arg=${_commandLineOptionsArgs["$opt"]}
             arg=${arg:-ARG}
             _isMandatory "$opt" && optlist+=("-${opt%:} $arg") || optlist+=("[-${opt%:} $arg]")
