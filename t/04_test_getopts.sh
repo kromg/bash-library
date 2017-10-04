@@ -7,7 +7,7 @@ set -e
     . ../getopts.sh
 set +e
 
-tests 33
+tests 41
 
 tlog "printing help in case of -h"
 HELP="$(getOptions '-h')"
@@ -182,6 +182,46 @@ pass
 tlog "name arguments after - more names than args"
 NA4="$(getOptions a b c; nameArguments ONE TWO THREE FOUR FIVE SIX; echo "$ONE $THREE $SIX")"
 [ "$NA4" == "a c " ] || fail "failed to name options after parsing (more names than options)"
+pass
+
+tlog "named flags"
+NF="$(addOption -V FLAG 'f'; getOptions -f; echo $FLAG)"
+[ "$NF" == 1 ] || fail "cannot name flags"
+pass
+
+tlog "named flags (not present)"
+NFA="$(addOption -V FLAG 'f'; getOptions; echo $FLAG)"
+[ "$NFA" == "" ] || fail "non present name flags not empty"
+pass
+
+tlog "named option"
+NO="$(addOption -V option 'o:'; getOptions -o value; echo $option)"
+[ "$NO" == value ] || fail "cannot name options"
+pass
+
+tlog "named options (not present)"
+NOA="$(addOption -V option 'o:'; getOptions; echo $option)"
+[ "$NOA" == "" ] || fail "non present name option not empty"
+pass
+
+tlog "named option - default"
+NOD="$(addOption -V option -d "DEF" 'o:'; getOptions -o value; echo $option)"
+[ "$NOD" == "value" ] || fail "named option with default got wrong (got: $NOD, expected: value)"
+pass
+
+tlog "named option - default - val missing"
+NODM="$(addOption -V option -d "DEF" 'o:'; getOptions; echo $option)"
+[ "$NODM" == "DEF" ] || fail "named option with default got wrong (got: $NOD, expected: DEF)"
+pass
+
+tlog "named multi-valued option"
+NMVO="$(addOption -V option 'o@'; getOptions -o value -o value2; echo "${option[@]}")"
+[ "$NMVO" == "value value2" ] || fail "cannot name omulti-valued ptions"
+pass
+
+tlog "named options multi-valued (not present)"
+NMVOA="$(addOption -V option 'o@'; getOptions; echo "${option[@]}")"
+[ "$NMVOA" == "" ] || fail "non present name multi-valued option not empty"
 pass
 
 done_testing

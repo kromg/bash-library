@@ -60,6 +60,10 @@
 #           - Added dieWithHelp()
 #           - Added "-e" to echoes in printHelp
 #
+#       2017-10-04T17:45:22+02:00
+#           - Added -V flag to addOption in order to export named variables with
+#               the value obtained from command line.
+#
 
 # ------------------------------------------------------------------------------
 #  Helper variables
@@ -73,6 +77,7 @@ declare -A _commandLineOptionsHelp
 declare -A _commandLineOptionsArgs
 declare -A _commandLineOptionsMandatory
 declare -A _commandLineOptionsDefault
+declare -A _commandLineOptionsVarNames
 
 # Add default options: -h (help), -v (verbose) and -V (version).
 #  This should be done via addOption but I cannot do it here.
@@ -128,6 +133,11 @@ function _hasDefault() {
     [ "${_commandLineOptionsDefault[$1]}" ]
 }
 
+# Check if a variable name was specified for an option
+function _hasName() {
+    [ "${_commandLineOptionsVarNames[$1]}" ]
+}
+
 # Generate the name of the array for multi-valued options
 function _arrayName() {
     echo "_${1}_VALUES"
@@ -156,7 +166,7 @@ function _nameArguments() {
 #   Add an element to the list of the possible command line flags/options.
 #
 # Usage:
-#   addOption [-a <argName>] [-d <defValue> ] <optionSpec> <helpString>
+#   addOption [-a <argName>] [-d <defValue> ] [-V <varName>] <optionSpec> <helpString>
 #
 #     optionSpec:
 #           a character (e.g.: "f")          -->   a flag (as in bash's getopts)
@@ -175,10 +185,12 @@ function _nameArguments() {
 #
 #     helpString: a string to be used in the help message.
 #
-#     -a argName: for options (with argument), the argument name to be displayed in
-#               help string.
-#     -d defValue: for options, use this default value if option is not specified
-#               on command line.
+#       -a argName: for options (with argument), the argument name to be displayed in
+#                   help string.
+#       -d defValue: for options, use this default value if option is not specified
+#                   on command line.
+#       -V varName: export a variable with this name an the value got from command
+#                   line (or from default).
 #
 function addOption() {
     local OPTIND    # Do not interfere with other getopts
@@ -186,13 +198,17 @@ function addOption() {
     # Parse __our__ command line :)
     local _default=''
     local _arg='<ARG>'
-    while getopts "a:d:" OPT; do
+    local _varName=''
+    while getopts "a:d:V:" OPT; do
         case "$OPT" in
             a)
                 _arg="$OPTARG"
                 ;;
             d)
                 _default="$OPTARG"
+                ;;
+            V)
+                _varName="$OPTARG"
                 ;;
         esac
     done
@@ -233,6 +249,7 @@ function addOption() {
     # Fill other information about this option
     _commandLineOptionsHelp["$optspec"]="${2:-<no help>}"
     [ "$_default" ] && _commandLineOptionsDefault["$optspec"]="$_default"
+    [ "$_varName" ] && _commandLineOptionsVarNames["$optspec"]="$_varName"
     [[ "$1" =~ ! ]] && _commandLineOptionsMandatory["$optspec"]=1
 
     return 0
@@ -352,6 +369,27 @@ function getOptions() {
         else
             _definedCommandLineOptions["$opt"]=${_commandLineOptionsDefault[$optspec]}
         fi  
+    done
+
+    # Export requested variables with option values
+    for optspec in "${!_commandLineOptionsVarNames[@]}"; do
+        local opt="${optspec%:}"
+        case "$optspec" in
+            *:)
+                hasOption "$opt" || continue    # Skip non valued
+                varName="${_commandLineOptionsVarNames[$optspec]}"
+                if _isMultivalued "$optspec"; then
+                    arrName="$(valueOf "$opt")"
+                    eval "$varName=(\"\${$arrName[@]}\"); export $varName"
+                else
+                    eval "export $varName=$(valueOf $opt)"
+                fi
+                ;;
+            *)
+                isSet "$opt" || continue        # Skip non valued
+                eval "export ${_commandLineOptionsVarNames[$optspec]}=1"
+                ;;
+        esac
     done
 
     # Print help and exit 0 if required on command line (-h)
@@ -497,6 +535,6 @@ function printHelp() {
 #   dieWithHelp [<any arg to printHelp>]
 #
 function dieWithHelp() {
-    printHelp "$@" >&2
+    printHelp "\nERROR: $*" >&2
     exit 1
 }
