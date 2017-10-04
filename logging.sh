@@ -31,12 +31,22 @@
 #   V2016-03-01T16:10:52+0100
 #       First public release. info() is no more enabled by default (may
 #       conflict with a system command).
+#   V2017-10-04T17:06:06+02:00
+#       die() now prints without prefix.
 #
 #
 
 # Check that we're being sourced:
 [ "$0" == "$BASH_SOURCE" ] && {
     echo "This script is meant to be sourced, not executed." >&2
+    exit 1
+}
+
+# ------------------------------------------------------------------------------
+#  Simple output functions
+# ------------------------------------------------------------------------------
+function die() {
+    echo -e "$@" >&2
     exit 1
 }
 
@@ -175,11 +185,6 @@ function err() {
 }
 
 function fatal() {
-    _log "_LOG_LEVEL_FATAL" "$@" >&2
-    exit 1
-}
-
-function die() {
     _log "_LOG_LEVEL_FATAL" "$@" >&2
     exit 1
 }
