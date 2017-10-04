@@ -47,6 +47,11 @@
 #           - Fixed help on options with no help;
 #           - spaced options to make help more readable.
 #
+#       2017-10-04T15:33:17+02:00
+#           - Added possibility to specify default value for options.
+#           API CHANGE: addOption now accepts 2 arguments; the optional 
+#               argument name must be passed via "-a ARGNAME" now.
+#
 
 # ------------------------------------------------------------------------------
 #  Helper variables
@@ -59,6 +64,7 @@ declare -A _commandLineMultivalueOptions
 declare -A _commandLineOptionsHelp
 declare -A _commandLineOptionsArgs
 declare -A _commandLineOptionsMandatory
+declare -A _commandLineOptionsDefault
 
 # Add default options: -h (help), -v (verbose) and -V (version).
 #  This should be done via addOption but I cannot do it here.
@@ -109,6 +115,15 @@ function _isMultivalued() {
     [ "${_commandLineMultivalueOptions[$1]}" ]
 }
 
+# Check if a default value was specified for this option
+function _hasDefault() {
+    [ "${_commandLineOptionsDefault[$1]}" ]
+}
+
+# Generate the name of the array for multi-valued options
+function _arrayName() {
+    echo "_${1}_VALUES"
+}
 
 
 # ------------------------------------------------------------------------------
@@ -119,7 +134,7 @@ function _isMultivalued() {
 #   Add an element to the list of the possible command line flags/options.
 #
 # Usage:
-#   addOption <optionSpec> <helpString> [<argName>]
+#   addOption [-a <argName>] [-d <defValue> ] <optionSpec> <helpString>
 #
 #     optionSpec:
 #           a character (e.g.: "f")          -->   a flag (as in bash's getopts)
@@ -138,10 +153,29 @@ function _isMultivalued() {
 #
 #     helpString: a string to be used in the help message.
 #
-#     argName: for options (with argument), the argument name to be displayed in
-#              help string.
+#     -a argName: for options (with argument), the argument name to be displayed in
+#               help string.
+#     -d defValue: for options, use this default value if option is not specified
+#               on command line.
 #
 function addOption() {
+    local OPTIND    # Do not interfere with other getopts
+
+    # Parse __our__ command line :)
+    local _default=''
+    local _arg='<ARG>'
+    while getopts "a:d:" OPT; do
+        case "$OPT" in
+            a)
+                _arg="$OPTARG"
+                ;;
+            d)
+                _default="$OPTARG"
+                ;;
+        esac
+    done
+    shift $(( OPTIND - 1 ))
+
     # Get the option/flag without the optional '!' 
     local optspec="${1#!}"
     local opt="${optspec%:}"
@@ -162,21 +196,21 @@ function addOption() {
     case "$optspec" in
         *:)
             _commandLineOptions["$optspec"]=1
-            _commandLineOptionsArgs["$optspec"]="${3:-<ARG>}"
+            _commandLineOptionsArgs["$optspec"]="$_arg"
             ;;
         *@)
             optspec="${optspec/@/:}"  # "@" won't be needed anymore, ":" will
             _commandLineMultivalueOptions["$optspec"]=1
-            _commandLineOptionsArgs["$optspec"]="${3:-<ARG>}"
+            _commandLineOptionsArgs["$optspec"]="$_arg"
             ;;
         *)
             _commandLineFlags["$optspec"]=1
             ;;
     esac
 
-
     # Fill other information about this option
     _commandLineOptionsHelp["$optspec"]="${2:-<no help>}"
+    [ "$_default" ] && _commandLineOptionsDefault["$optspec"]="$_default"
     [[ "$1" =~ ! ]] && _commandLineOptionsMandatory["$optspec"]=1
 
     return 0
@@ -215,6 +249,7 @@ function addOption() {
 #   getOptions "$@"     # Pass script's args to getOptions()
 #
 function getOptions() {
+    local OPTIND    # Do not interfere with other getopts
     local optString=':'
     # Build the options string. Start with a colon so getopts uses silent
     # error reporting
@@ -246,7 +281,7 @@ function getOptions() {
                         _definedCommandLineOptions[$OPT]="$OPTARG"
                         ;;
                     2)
-                        local array="_${OPT}_VALUES"
+                        local array="$(_arrayName "$OPT")"
                         _definedCommandLineOptions[$OPT]="$array"
                         eval "export $array"
                         # declare -a "$array"  # NO! This makes this variable local.
@@ -265,6 +300,23 @@ function getOptions() {
     shift $(( $OPTIND - 1 ))
     # Do NOT set and export array at the same time. Do it in 2 steps:
     ARGV=( "$@" ); export ARGV
+
+    # Inject default values for options not overridden on command line
+    for optspec in "${!_commandLineOptionsDefault[@]}"; do
+        opt="${optspec%:}"
+
+        # Do not override command line
+        hasOption "$opt" && continue
+
+        # Install default where appropriate
+        if _isMultivalued "$optspec"; then
+            local array="$(_arrayName "$opt")"
+            _definedCommandLineOptions["$opt"]=$array
+            eval "$array=('${_commandLineOptionsDefault[$optspec]}')"
+        else
+            _definedCommandLineOptions["$opt"]=${_commandLineOptionsDefault[$optspec]}
+        fi  
+    done
 
     # Print help and exit 0 if required on command line (-h)
     if isSet "h"; then
@@ -327,8 +379,6 @@ function valueOf() {
     echo "${_definedCommandLineOptions[$1]}"
 }
 
-
-
 # setHelp() 
 #   Set a personalized help message (overrides help completely, including
 #   usage string and help footer).
@@ -386,6 +436,7 @@ function printHelp() {
             _isMandatory "$opt" && optlist+=("-${opt%:} $arg") || optlist+=("[-${opt%:} $arg]")
             opts+=$"      -${opt%:} $arg\n        ${_commandLineOptionsHelp[$opt]}\n"
             _isMultivalued "$opt" && opts+=$"        This option can be specified multiple times.\n"
+            _hasDefault "$opt" && opts+=$"        Default: ${_commandLineOptionsDefault[$opt]}\n"
         else
             _isMandatory "$opt" && optlist+=("-$opt") || optlist+=("[-$opt]")
             flags+=$"      -$opt\t${_commandLineOptionsHelp[$opt]}\n"
