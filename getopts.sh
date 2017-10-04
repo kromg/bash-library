@@ -56,6 +56,10 @@
 #           - Added nameArguments() to export command line arguments as named
 #             variables.
 #
+#       2017-10-04T16:56:33+02:00
+#           - Added dieWithHelp()
+#           - Added "-e" to echoes in printHelp
+#
 
 # ------------------------------------------------------------------------------
 #  Helper variables
@@ -295,12 +299,10 @@ function getOptions() {
     while getopts "$optString" OPT; do
         case "$OPT" in
             ':')
-                printHelp "Missing argument to option: $OPTARG" >&2
-                exit 1
+                dieWithHelp "Missing argument to option: $OPTARG"
                 ;;
             '?')
-                printHelp "Unknown option: $OPTARG" >&2
-                exit 1
+                dieWithHelp "Unknown option: $OPTARG"
                 ;;
             *)  
                 _numArgs "$OPT"; numargs=$?
@@ -310,8 +312,7 @@ function getOptions() {
                         ;;
                     1)
                         if hasOption "$OPT"; then
-                            printHelp "Option -$OPT duplicated on command line. It's not a multi-valued option." >&2
-                            exit 1
+                            dieWithHelp "Option -$OPT duplicated on command line. It's not a multi-valued option."
                         fi
                         _definedCommandLineOptions[$OPT]="$OPTARG"
                         ;;
@@ -362,8 +363,7 @@ function getOptions() {
     # Check for mandatory options, die if a mandatory option was not found.
     for m in "${!_commandLineOptionsMandatory[@]}"; do
         if ! hasOption "${m%:}"; then
-            printHelp "Option ${m%:} is mandatory" >&2
-            exit 1
+            dieWithHelp "Option ${m%:} is mandatory"
         fi
     done
 
@@ -455,7 +455,7 @@ function printHelp() {
 
     # If user overrode help message, print that
     [ "$_HELP_MESSAGE" ] && {
-        [ "$1" ] && echo "$*"
+        [ "$1" ] && echo -e "$*"
         echo -e "$_HELP_MESSAGE"
         return 0
     }
@@ -481,7 +481,7 @@ function printHelp() {
     done
 
     (
-        [ "$1" ] && echo "$*"
+        [ "$1" ] && echo -e "$*"
         [ "$_USAGE" ] && echo -e "\n$_USAGE" || echo -e "\nUsage: $(basename $0) ${optlist[@]}\n"
         [ "$flags" ] && echo -e "    FLAGS\n$flags\n"
         [ "$opts"  ] && echo -e "    OPTIONS\n$opts\n"
@@ -489,3 +489,14 @@ function printHelp() {
     ) | fold -w 80
 }
 
+# dieWithHelp()
+#   Calls printHelp() passing the parameters, redirects printHelp() to STDERR
+#   and exits 1 afterwards.
+#
+# Usage:
+#   dieWithHelp [<any arg to printHelp>]
+#
+function dieWithHelp() {
+    printHelp "$@" >&2
+    exit 1
+}
