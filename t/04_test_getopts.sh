@@ -7,7 +7,7 @@ set -e
     . ../getopts.sh
 set +e
 
-tests 22
+tests 25
 
 tlog "printing help in case of -h"
 HELP="$(getOptions '-h')"
@@ -122,6 +122,26 @@ MVR="$(addOption 'm@'; getOptions '-m' 1 '-m' '2 3 4' -m '5 6' -m 7 && arr="$(va
 [ "$MVR" == "X1XX2 3 4XX5 6XX7X" ] || fail "Failed to retrieve multi-values"
 pass
 
+tlog "usage overriding"
+UO="$(addOption 'c:' 'c Help' 'c-arg'; setUsage "Usage and blah blah blah"; getOptions '-h')"
+[[ "$UO" =~ 'Usage and blah blah blah' ]] || fail "setUsage() not setting usage"
+[[ "$UO" =~ $(basename $0) ]] && fail "setUsage() not overriding usage"
+[[ "$UO" =~ '-c c-arg' ]] || fail "setUsage() altering help"
+pass
+
+tlog "help footer"
+HF="$(addOption 'c:' 'c Help' 'c-arg'; setHelpFooter "THIS MESSAGE AFTER ALL"; getOptions '-h')"
+[[ "$HF" =~ 'THIS MESSAGE AFTER ALL' ]] || fail "setHelpFooter() not setting footer"
+[[ "$HF" =~ $(basename $0) ]] || fail "setHelpFooter() overriding usage"
+[[ "$HF" =~ '-c c-arg' ]] || fail "setHelpFooter() altering help"
+pass
+
+tlog "override help"
+OH="$(addOption 'c:' 'c Help' 'c-arg'; setHelp "Usage and blah blah blah"; getOptions '-h')"
+[[ "$OH" =~ 'Usage and blah blah blah' ]] || fail "setHelp() not setting help"
+[[ "$OH" =~ $(basename $0) ]] && fail "setHelp() not overriding usage"
+[[ "$OH" =~ '-c c-arg' ]] && fail "setHelp() not overriding help"
+pass
 
 done_testing
 

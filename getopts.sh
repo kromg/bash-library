@@ -37,6 +37,9 @@
 #       2017-10-03T17:20:17+02:00
 #           - Added detection of duplicated option on command line.
 #
+#       2017-10-04T13:25:14+02:00
+#           - Added functions to mangle help screen.
+#
 
 # ------------------------------------------------------------------------------
 #  Helper variables
@@ -317,10 +320,52 @@ function valueOf() {
 }
 
 
+
+# setHelp() 
+#   Set a personalized help message (overrides help completely, including
+#   usage string and help footer).
+#
+# Usage:
+#   setHelp "${HELP_MESSAGE}"
+#
+function setHelp() {
+    _HELP_MESSAGE="$1"
+}
+
+# setUsage()
+#   Set a personalized "usage" line.
+#
+# Usage:
+#   setUsage "Usage: $0 blah blah blah"
+#
+function setUsage() {
+    _USAGE="$1"
+}
+
+# setHelpFooter()
+#   Set a text to be printed after help.
+#
+# Usage:
+#   setHelpFooter "${HELP_FOOTER}"
+#
+function setHelpFooter() {
+    _HELP_FOOTER="$1"
+}
+
+
 # printHelp()
 #   Prints the whole help string.
 #
 function printHelp() {
+
+    # If user overrode help message, print that
+    [ "$_HELP_MESSAGE" ] && {
+        [ "$1" ] && echo "$*"
+        echo -e "$_HELP_MESSAGE"
+        return 0
+    }
+        
+
     local opts=''
     local flags=''
     local optlist=()
@@ -340,9 +385,10 @@ function printHelp() {
 
     (
         [ "$1" ] && echo "$*"
-        echo -e "\nUsage: $(basename $0) ${optlist[@]}\n"
+        [ "$_USAGE" ] && echo -e "\n$_USAGE" || echo -e "\nUsage: $(basename $0) ${optlist[@]}\n"
         [ "$flags" ] && echo -e "    FLAGS\n$flags\n"
         [ "$opts"  ] && echo -e "    OPTIONS\n$opts\n"
+        [ "$_HELP_FOOTER" ] && echo -e "\n$_HELP_FOOTER"
     ) | fold -w 80
 }
 
