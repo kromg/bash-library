@@ -40,6 +40,9 @@
 #       2017-10-04T13:25:14+02:00
 #           - Added functions to mangle help screen.
 #
+#       2017-10-04T13:55:07+02:00
+#           - Fixed an error in _isMultivalued()
+#
 
 # ------------------------------------------------------------------------------
 #  Helper variables
@@ -99,7 +102,7 @@ function _isMandatory() {
 
 # Check if this option is multi-valued
 function _isMultivalued() {
-    [ "$_commandLineMultivalueOptions[$1]}" ]
+    [ "${_commandLineMultivalueOptions[$1]}" ]
 }
 
 

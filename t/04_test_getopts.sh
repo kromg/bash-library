@@ -22,6 +22,7 @@ pass
 tlog "help of an option"
 HELP="$(addOption 'k:' 'Force coefficient' "COEFFICIENT"; getOptions -h)"
 [[ "$HELP" =~ '-k COEFFICIENT' ]] || fail "Could not set help of an option"
+[[ "$HELP" =~ 'This option can be specified multiple times' ]] && fail "Single-valued option read as multi-valued"
 pass
 
 tlog "help of a multi-valued option"
