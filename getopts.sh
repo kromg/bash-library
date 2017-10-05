@@ -64,6 +64,10 @@
 #           - Added -V flag to addOption in order to export named variables with
 #               the value obtained from command line.
 #
+#       2017-10-05T11:48:07+02:00
+#           - The way getOptions used $IFS could interfere with IFS outside the
+#               function. Fixed.
+#
 
 # ------------------------------------------------------------------------------
 #  Helper variables
@@ -309,9 +313,12 @@ function getOptions() {
     local optString=':'
     # Build the options string. Start with a colon so getopts uses silent
     # error reporting
-    IFS='' optString+="${!_commandLineFlags[*]}"
-    IFS='' optString+="${!_commandLineOptions[*]}"
-    IFS='' optString+="${!_commandLineMultivalueOptions[*]}"
+    local oIFS="$IFS"
+    local IFS=''
+    optString+="${!_commandLineFlags[*]}"
+    optString+="${!_commandLineOptions[*]}"
+    optString+="${!_commandLineMultivalueOptions[*]}"
+    IFS="$oIFS"
 
     while getopts "$optString" OPT; do
         case "$OPT" in
